@@ -1,116 +1,136 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 import { useParams } from "next/navigation";
-import { db } from "../../../lib/firebase";
-import { doc, getDoc, collection, query, where, getDocs, updateDoc } from "firebase/firestore";
+import { motion } from "framer-motion";
+import { ExternalLink, Globe } from "lucide-react";
 
 export default function PublicProfile() {
-  const params = useParams();
+  const { id } = useParams();
   const [profile, setProfile] = useState<any>(null);
-  const [userRef, setUserRef] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!params?.id) return;
-      const idOrSlug = params.id as string;
-      
-      try {
-        let userData: any = null;
-        let docRef: any = null;
-
-        // 🔍 雙模組搜尋
-        // 1. 先嘗試用 UID 找 (相容舊網址)
-        const directRef = doc(db, "users", idOrSlug);
-        try {
-          const docSnap = await getDoc(directRef);
-          if (docSnap.exists()) {
-            docRef = directRef;
-            userData = docSnap.data();
-          }
-        } catch (e) {
-          console.log("非 UID，嘗試搜尋 Slug...");
-        }
-
-        // 2. 如果找不到，改用 Slug 搜尋 (自定義網址)
-        if (!userData) {
-          const q = query(collection(db, "users"), where("slug", "==", idOrSlug));
-          const querySnapshot = await getDocs(q);
-          if (!querySnapshot.empty) {
-            docRef = querySnapshot.docs[0].ref;
-            userData = querySnapshot.docs[0].data();
-          }
-        }
-
-        if (userData) {
-          if (userData.status === "banned") {
-            setError("此帳號目前無法查看");
-          } else {
-            setProfile(userData);
-            setUserRef(docRef); // 儲存位置，準備寫入點擊數
-          }
-        } else {
-          setError("找不到此用戶頁面");
-        }
-      } catch (err) {
-        console.error("讀取錯誤:", err);
-        setError("資料讀取失敗 (請確認 Firebase 規則)");
-      } finally {
-        setLoading(false);
+      if (!id) return;
+      const docRef = doc(db, "users", id as string);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setProfile(docSnap.data());
       }
     };
     fetchProfile();
-  }, [params]);
+  }, [id]);
 
-  // 🎯 核心動作：點擊追蹤
-  const handleLinkClick = async (index: number) => {
-    if (!profile || !userRef) return;
-
-    try {
-      // 複製一份目前的 links 陣列
-      const newLinks = [...profile.links];
-      // 將被點擊的那一條連結的 clicks 數字 +1 (如果原本沒有就從 0 開始加)
-      newLinks[index].clicks = (newLinks[index].clicks || 0) + 1;
-      
-      // 寫回 Firestore (背景靜默執行，不影響用戶跳轉)
-      await updateDoc(userRef, { links: newLinks });
-    } catch (err) {
-      console.error("追蹤點擊失敗", err);
-    }
-  };
-
-  if (loading) return <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center font-bold animate-pulse">載入中...</div>;
-  if (error) return <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center font-bold text-red-500">{error}</div>;
+  if (!profile) return (
+    <div className="min-h-screen bg-black flex items-center justify-center text-white">
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+        className="w-8 h-8 border-4 border-white/20 border-t-white rounded-full"
+      />
+    </div>
+  );
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-white p-6 flex flex-col items-center pt-20">
-      <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-8 duration-1000 text-center">
-        {profile.photoURL ? (
-          <img src={profile.photoURL} className="w-24 h-24 rounded-full border-2 border-white/20 shadow-2xl mx-auto mb-6" />
-        ) : (
-          <div className="w-24 h-24 bg-gradient-to-br from-gray-700 to-black rounded-full border-2 border-white/20 flex items-center justify-center font-black text-4xl mx-auto mb-6">
-            {profile.displayName?.[0]}
-          </div>
-        )}
-        <h1 className="text-2xl font-black tracking-tight mb-10">{profile.displayName}</h1>
+    <main className="min-h-screen bg-black text-white p-6 font-sans selection:bg-white selection:text-black flex flex-col items-center justify-center">
+      {/* 個人頭像與標題區塊 */}
+      <header className="max-w-4xl w-full text-center mb-16">
+        <motion.div 
+          initial={{ scale: 0 }} animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 260, damping: 20 }}
+          className="w-28 h-28 bg-gradient-to-tr from-gray-700 to-gray-400 rounded-full mx-auto mb-6 border-4 border-white/10 shadow-[0_0_40px_rgba(255,255,255,0.1)] overflow-hidden flex items-center justify-center"
+        >
+          {/* 如果你有頭像網址可以用 img，暫時用 ID 的第一個字母作為頭像 */}
+          <span className="text-4xl font-black text-white drop-shadow-md">
+            {String(id).charAt(0).toUpperCase()}
+          </span>
+        </motion.div>
         
-        <div className="space-y-4">
+        <motion.h1 
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+          className="text-4xl font-black tracking-tighter mb-2 uppercase"
+        >
+          {id}
+        </motion.h1>
+        
+        <motion.p 
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
+          className="opacity-50 text-sm font-medium tracking-widest uppercase"
+        >
+          {profile.bio || "Personal Space"}
+        </motion.p>
+      </header>
+
+      {/* 拖拉滑動卡片區域 */}
+      <section className="w-full max-w-[100vw]">
+        {/* 使用 overflow-x-auto 達成原生順滑的橫向滾動，並隱藏滾動條 */}
+        <div className="flex overflow-x-auto pb-12 pt-4 px-6 md:px-12 gap-6 snap-x snap-mandatory hide-scrollbar items-center">
           {profile.links?.map((link: any, index: number) => (
-            <a 
-              key={index} 
-              href={link.url.startsWith('http') ? link.url : `https://${link.url}`} 
-              target="_blank" 
+            <motion.a
+              key={index}
+              href={link.url.startsWith('http') ? link.url : `https://${link.url}`}
+              target="_blank"
               rel="noopener noreferrer"
-              onClick={() => handleLinkClick(index)} // 🔥 觸發追蹤的開關
-              className="block w-full bg-white/5 hover:bg-white/10 border border-white/10 p-5 rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ 
+                type: "spring", 
+                stiffness: 100, 
+                damping: 15, 
+                delay: index * 0.1 // 讓卡片一張一張飛進來
+              }}
+              whileHover={{ scale: 1.02, y: -5 }}
+              whileTap={{ scale: 0.98 }}
+              className="flex-shrink-0 w-[280px] md:w-[320px] aspect-[4/5] bg-white/5 backdrop-blur-md border border-white/10 rounded-[2rem] p-8 flex flex-col justify-between snap-center hover:bg-white/10 hover:border-white/20 hover:shadow-[0_0_30px_rgba(255,255,255,0.05)] transition-all duration-300 group relative overflow-hidden"
             >
-              <span className="font-bold text-lg">{link.title}</span>
-            </a>
+              {/* 卡片右上角的背景裝飾光暈 */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none transition-opacity duration-500 group-hover:opacity-100 opacity-50" />
+
+              {/* 卡片上半部：圖示 */}
+              <div className="flex justify-between items-start relative z-10">
+                <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center text-white backdrop-blur-sm border border-white/5">
+                  <Globe size={28} strokeWidth={1.5} />
+                </div>
+                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-white/0 group-hover:bg-white/10 transition-colors duration-300">
+                  <ExternalLink size={20} className="text-white/30 group-hover:text-white transition-colors duration-300" />
+                </div>
+              </div>
+              
+              {/* 卡片下半部：文字 */}
+              <div className="relative z-10">
+                <h2 className="text-2xl font-bold tracking-tight mb-3 line-clamp-2 leading-tight">
+                  {link.title}
+                </h2>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                  <p className="text-xs font-mono opacity-60 truncate max-w-[180px]">
+                    {link.url.replace(/^https?:\/\//, '')}
+                  </p>
+                </div>
+              </div>
+            </motion.a>
           ))}
+          
+          {/* 結尾的留白，讓最後一張卡片可以滑到中間 */}
+          <div className="w-6 md:w-12 flex-shrink-0" />
         </div>
-        <div className="mt-20 opacity-30 text-[10px] font-black tracking-widest uppercase italic">Powered by River Link</div>
-      </div>
+      </section>
+
+      {/* 隱藏滾動條的 CSS (放在全域或這裡都可以，這裡用 inline style 確保生效) */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .hide-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}} />
+
+      <footer className="mt-16 text-center opacity-20 text-[10px] font-black tracking-widest uppercase italic">
+        Powered by River Link 2026
+      </footer>
     </main>
   );
 }
