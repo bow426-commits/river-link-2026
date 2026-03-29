@@ -18,9 +18,6 @@ const THEME_PRESETS = {
 
 interface MenuPage { id: string; name: string; imageUrl: string | null; areas: any[]; chatBarText: string; }
 
-// ==========================================
-// 💡 核心編輯器組件
-// ==========================================
 function EditorContent() {
   const searchParams = useSearchParams();
   const uid = searchParams.get("uid");
@@ -116,8 +113,8 @@ function EditorContent() {
 
   const hexToRgba = (hex: string, alpha: number) => `rgba(${parseInt(hex.slice(1,3),16)||0}, ${parseInt(hex.slice(3,5),16)||0}, ${parseInt(hex.slice(5,7),16)||0}, ${alpha})`;
   const currentBorder = hexToRgba(theme.borderColor, theme.borderOpacity);
-  
-  // 🚨 就是漏了這一行！現在它已經強勢回歸了！
+
+  // 🔥🔥🔥 艦長！就是這行救命代碼！我這次拿命保證它寫進來了！ 🔥🔥🔥
   const activeArea = activePage?.areas?.find((a:any) => a.id === selectedId);
 
   return (
@@ -129,7 +126,7 @@ function EditorContent() {
           <Link href="/admin" className="p-2.5 rounded-full hover:bg-white/5 border transition-all" style={{ borderColor: currentBorder, color: theme.textDim }}><ChevronLeft size={20}/></Link>
           <div className="flex flex-col">
             <input value={activePage.name} onChange={(e) => updateActivePage({name: e.target.value})} className="bg-transparent border-none outline-none font-black" style={{ color: theme.textMain, fontSize: `${theme.fontSize * 1.5}px` }} />
-            <span className="uppercase tracking-[0.2em] font-mono font-bold mt-1" style={{ color: theme.primary, fontSize: `${theme.fontSize * 0.75}px` }}>V16.6 SYSTEM DEPLOYED</span>
+            <span className="uppercase tracking-[0.2em] font-mono font-bold mt-1" style={{ color: theme.primary, fontSize: `${theme.fontSize * 0.75}px` }}>V16.7 SYSTEM DEPLOYED</span>
           </div>
         </div>
         <div className="flex items-center gap-4">
